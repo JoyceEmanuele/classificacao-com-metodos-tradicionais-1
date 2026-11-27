@@ -17,18 +17,33 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-iris_df = pd.read_csv('Iris.csv')
-iris_df = iris_df.drop(columns=['Id'])
+df = pd.read_csv('hotel_bookings.csv')
 
-X_iris = iris_df.drop(columns=['Species'])
-y_iris = pd.Categorical(iris_df['Species']).codes
+df = df.drop(columns=['reservation_status', 'reservation_status_date', 'country'])
 
-X_train_iris, X_test_iris, y_train_iris, y_test_iris = train_test_split(
-    X_iris,
-    y_iris,
+df['children'] = df['children'].fillna(0)
+df['agent'] = df['agent'].fillna(0)
+df['company'] = df['company'].fillna(0)
+
+df = pd.get_dummies(df, drop_first=True)
+
+X = df.drop(columns=['is_canceled'])
+y = df['is_canceled']
+
+X_train_hotel, X_test_hotel, y_train_hotel, y_test_hotel = train_test_split(
+    X,
+    y,
     test_size=0.2,
     random_state=42,
-    stratify=y_iris
+    stratify=y
+)
+
+X_amostra, _, y_amostra, _ = train_test_split(
+    X_train_hotel,
+    y_train_hotel,
+    train_size=10000,
+    random_state=42,
+    stratify=y_train_hotel
 )
 
 
@@ -41,36 +56,36 @@ grid_lr = GridSearchCV(
     pipeline_lr,
     {'lr__C': [0.01, 0.1, 1, 10]},
     cv=5,
-    scoring='f1_weighted',
+    scoring='f1',
     n_jobs=-1
 )
 
 print("\nRegressão Logística")
-grid_lr.fit(X_train_iris, y_train_iris)
+grid_lr.fit(X_amostra, y_amostra)
 best_model_lr = grid_lr.best_estimator_
 
 print("Melhores parâmetros:", grid_lr.best_params_)
 
-y_pred_lr = best_model_lr.predict(X_test_iris)
+y_pred_lr = best_model_lr.predict(X_test_hotel)
 
-print("Acurácia:", accuracy_score(y_test_iris, y_pred_lr))
-print("Precisão:", precision_score(y_test_iris, y_pred_lr, average='weighted'))
-print("Revocação:", recall_score(y_test_iris, y_pred_lr, average='weighted'))
-print("F1:", f1_score(y_test_iris, y_pred_lr, average='weighted'))
+print("Acurácia:", accuracy_score(y_test_hotel, y_pred_lr))
+print("Precisão:", precision_score(y_test_hotel, y_pred_lr))
+print("Revocação:", recall_score(y_test_hotel, y_pred_lr))
+print("F1:", f1_score(y_test_hotel, y_pred_lr))
 print("\nMatriz de confusão:")
-print(confusion_matrix(y_test_iris, y_pred_lr))
+print(confusion_matrix(y_test_hotel, y_pred_lr))
 print("\nRelatório de classificação:")
-print(classification_report(y_test_iris, y_pred_lr))
+print(classification_report(y_test_hotel, y_pred_lr))
 
 
 
 scaler_viz = StandardScaler()
-X_train_scaled = scaler_viz.fit_transform(X_train_iris)
+X_amostra_scaled = scaler_viz.fit_transform(X_amostra)
 pca = PCA(n_components=2)
-X_pca = pca.fit_transform(X_train_scaled)
+X_pca = pca.fit_transform(X_amostra_scaled)
 
 lr_viz = LogisticRegression(C=grid_lr.best_params_['lr__C'], class_weight='balanced', max_iter=1000, random_state=42)
-lr_viz.fit(X_pca, y_train_iris)
+lr_viz.fit(X_pca, y_amostra)
 
 x_min, x_max = X_pca[:, 0].min() - 0.5, X_pca[:, 0].max() + 0.5
 y_min, y_max = X_pca[:, 1].min() - 0.5, X_pca[:, 1].max() + 0.5
@@ -78,14 +93,13 @@ xx, yy = np.meshgrid(np.linspace(x_min, x_max, 400), np.linspace(y_min, y_max, 4
 Z = lr_viz.predict(np.c_[xx.ravel(), yy.ravel()]).reshape(xx.shape)
 
 plt.figure(figsize=(10, 7))
-plt.contourf(xx, yy, Z, alpha=0.25, cmap='RdYlBu')
+plt.contourf(xx, yy, Z, alpha=0.25, cmap='RdBu')
 plt.contour(xx, yy, Z, colors='k', linewidths=0.8)
-plt.scatter(X_pca[y_train_iris == 0, 0], X_pca[y_train_iris == 0, 1], label='Setosa', alpha=0.6, s=30)
-plt.scatter(X_pca[y_train_iris == 1, 0], X_pca[y_train_iris == 1, 1], label='Versicolor', alpha=0.6, s=30)
-plt.scatter(X_pca[y_train_iris == 2, 0], X_pca[y_train_iris == 2, 1], label='Virginica', alpha=0.6, s=30)
+plt.scatter(X_pca[y_amostra == 0, 0], X_pca[y_amostra == 0, 1], label='Não cancelado', alpha=0.3, s=10)
+plt.scatter(X_pca[y_amostra == 1, 0], X_pca[y_amostra == 1, 1], label='Cancelado', alpha=0.3, s=10)
 plt.xlabel('PC1')
 plt.ylabel('PC2')
-plt.title(f'Regressão Logística (C={grid_lr.best_params_["lr__C"]}) - Iris - Fronteira de decisão (PCA 2D)')
+plt.title('Regressão Logística - Fronteira de decisão (PCA 2D)')
 plt.legend()
 plt.grid(alpha=0.2)
 plt.tight_layout()

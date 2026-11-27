@@ -5,13 +5,13 @@
 ```bash
 # SVM
 python dados-SVM-cdc.py
-python dados-SVM-iris.py
+python dados-SVM-hotel.py
 
 # Regressão Logística
 python regressaoLogistica-cdc.py
-python regressaoLogistica-iris.py
+python regressaoLogistica-hotel.py
 
 # KNN
 python knn-cdc.py
-python knn-iris.py
+python knn-hotel.py
 ```
